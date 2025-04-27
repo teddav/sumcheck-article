@@ -21,7 +21,8 @@ A = mle(a)
 B = mle(b)
 C = mle(c)
 
-# we construct a polynomial that is zero for all points in the cube
+# we construct our constraint polynomial
+# it is zero for all points in the cube
 P = A * B - C
 print("P =", P)
 
