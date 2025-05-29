@@ -48,7 +48,7 @@ assert l2(b1=0, b2=1) == values_l2[1]
 assert l2(b1=1, b2=0) == values_l2[2]
 assert l2(b1=1, b2=1) == values_l2[3]
 
-
+# we start with layer 0
 print("\nLAYER 0")
 
 # we compute the add and mul MLEs for layer 0
@@ -65,10 +65,12 @@ mul_vals0 = [0] * 2**5
 mul_vals0[0b11011] = 1
 mul0 = mle(mul_vals0)
 
-# now we compute the MLE for the layer 0 gates
+# now we can compute the layer 0's MLE
+# This is what the prover will send to the verifier
+# The GKR protocol is trying to verify that this MLE is correct
 L0 = add0 * (l1 + l1(b1=c1,b2=c2)) + mul0 * l1 * l1(b1=c1,b2=c2)
 
-# let's make sure that the MLE is correct
+# let's make sure that we computed the MLE correctly
 assert L0(a1=0, b1=0, b2=0, c1=0, c2=0) == 0
 assert L0(a1=0, b1=0, b2=0, c1=0, c2=1) == values_l0[0]
 assert L0(a1=0, b1=0, b2=0, c1=1, c2=0) == 0
@@ -103,7 +105,7 @@ assert L0(a1=1, b1=1, b2=1, c1=1, c2=0) == 0
 assert L0(a1=1, b1=1, b2=1, c1=1, c2=1) == 0
 
 # sample a random value
-# layer 0 has 2 gates, therefore 1 bit: so we need only 1 number
+# layer 0 has 2 gates, therefore 1 input (1 bit): so we need only 1 number
 r0 = [80]
 L0_r0 = L0(a1=r0[0])
 
@@ -111,20 +113,20 @@ L0_r0 = L0(a1=r0[0])
 sum_L0_r0 = sum(L0_r0(b1=b[0],b2=b[1],c1=c[0],c2=c[1]) for b in hypercube(2) for c in hypercube(2))
 print("sum L0_r0 =", sum_L0_r0)
 
-# the prover claims that SUM(L0_r0) == l0(r0)
+# the prover claims that SUM(L0(r0)) == l0(r0)
 # the verifier knows how to compute l0
-# then the verifier checks:
+# This is what the Verifier will check through the next steps:
 assert sum_L0_r0 == l0(b1=r0[0])
 
-# writing down the entire sumcheck protocol is a bit long, so we'll just write down the final result
-# during the sumcheck, we get these random values from the verifier for b and c
+# Writing down the entire sumcheck protocol is a bit long, so we'll just write down the final result.
+# During the sumcheck, we get these random values from the verifier for b and c
 r0_b = [61, 35]
 r0_c = [10, 20]
 sum0 = L0_r0(b1=r0_b[0],b2=r0_b[1],c1=r0_c[0],c2=r0_c[1])
 print("sum0 =", sum0)
 
-# prover now needs to prove the values of L1(r0_b) and L1(r0_c)
-# first he sends them to the verifier
+# Prover now needs to prove the values of L1(r0_b) and L1(r0_c)
+# First he sends them to the verifier
 l1_r0_b = l1(b1=r0_b[0],b2=r0_b[1])
 l1_r0_c = l1(b1=r0_c[0],b2=r0_c[1])
 print("l1_r0_b =", l1_r0_b)
@@ -142,8 +144,9 @@ assert verif_L0(a1=r0[0]) == sum0
 
 print("\nLAYER 1")
 
-# first we compute the MLEs for layer 1
+# first we compute the MLE for layer 1
 # by now you should understand how to do this
+
 # just note that layer 1 and 2 both have 4 gates, so we need 2 bits to represent each one
 # -> so we now use 6 variables, hence the 2**6
 add_vals1 = [0] * 2**6
@@ -155,6 +158,9 @@ mul_vals1 = [0] * 2**6
 mul_vals1[0b010010] = 1
 mul_vals1[0b100110] = 1
 mul1 = mle(mul_vals1)
+
+# Remember that the wiring of the circuit is known in advance (addition and multiplication gates)
+# so the verifier can compute the add and mul MLEs by himself
 
 # we have our layer 1 equation
 L1 = add1 * (l2 + l2(b1=c1,b2=c2)) + mul1 * l2 * l2(b1=c1,b2=c2)
@@ -229,25 +235,56 @@ assert L1(a1=1, a2=1, b1=1, b2=1, c1=0, c2=1) == 0
 assert L1(a1=1, a2=1, b1=1, b2=1, c1=1, c2=0) == 0
 assert L1(a1=1, a2=1, b1=1, b2=1, c1=1, c2=1) == values_l1[3]
 
-# Remember that we want to prove L1(b) and L1(c)
+# Now, we want to prove that:
+# L1(b) = l1_r0_b
+# L1(c) = l1_r0_c
+# so we need to run sumcheck on L1(b) and L1(c)
 L1_b = L1(a1=r0_b[0],a2=r0_b[1])
+L1_c = L1(a1=r0_c[0],a2=r0_c[1])
 
-# we run sumcheck on L1
+# we run sumcheck on L1(b)
 sum_L1_b = sum(L1_b(b1=b[0],b2=b[1],c1=c[0],c2=c[1]) for b in hypercube(2) for c in hypercube(2))
+print("sum L1_b =", sum_L1_b)
 assert sum_L1_b == l1_r0_b
 
-# we run sumcheck on L1_b
-r1_b = [55, 10]
-r1_c = [30, 40]
-c1_b = L1_b(b1=r1_b[0],b2=r1_b[1],c1=r1_c[0],c2=r1_c[1])
-# we end up with c1_b
-# and at the end, the Verifier can now compute c1_b by himself
-# since the values in layer 2 are known
-
-# same thing for L1_c
-L1_c = L1(a1=r0_c[0],a2=r0_c[1])
+# same thing for L1(c)
 sum_L1_c = sum(L1_c(b1=b[0],b2=b[1],c1=c[0],c2=c[1]) for b in hypercube(2) for c in hypercube(2))
+print("sum L1_c =", sum_L1_c)
 assert sum_L1_c == l1_r0_c
 
-# in reality, there's no need to run sumcheck on L1_b and L1_c separately
-# we can do it on a linear combination of the two
+print("This means that layer 0 was correct, based on the values of layer 1")
+print("Now, we need to verify that layer 1 is correct, based on the values of layer 2")
+print("Since layer 2 is the last layer, the verifier can compute the values of layer 2 by himself")
+print("")
+
+# sample a random value
+r1 = [10, 20]
+L1_r1 = L1(a1=r1[0],a2=r1[1])
+
+# we run sumcheck on L1_r1
+sum_L1_r1 = sum(L1_r1(b1=b[0],b2=b[1],c1=c[0],c2=c[1]) for b in hypercube(2) for c in hypercube(2))
+print("sum L1_r1 =", sum_L1_r1)
+
+# the verifier DOES NOT have access to l1, so he can't compute this himself
+# but let's just check for ourselves that the sumcheck is correct
+assert sum_L1_r1 == l1(b1=r1[0],b2=r1[1])
+
+
+r1_b = [55, 10]
+r1_c = [30, 40]
+sum1 = L1_r1(b1=r1_b[0],b2=r1_b[1],c1=r1_c[0],c2=r1_c[1])
+print("sum1 =", sum1)
+
+# this can be computed by the verifier directly
+# since the values in layer 2 are known
+l2_r1_b = l2(b1=r1_b[0],b2=r1_b[1])
+l2_r1_c = l2(b1=r1_c[0],b2=r1_c[1])
+print("l2_r1_b =", l2_r1_b)
+print("l2_r1_c =", l2_r1_c)
+
+# this can also be computed by the verifier directly
+# and the wiring of the circuit is known in advance (add1 and mul1)
+verif_L1 = add1(b1=r1_b[0],b2=r1_b[1],c1=r1_c[0],c2=r1_c[1])*(l2_r1_b + l2_r1_c) + mul1(b1=r1_b[0],b2=r1_b[1],c1=r1_c[0],c2=r1_c[1])*l2_r1_b*l2_r1_c
+
+# if this equation holds, the verifier now knows that the entire circuit is correct!
+assert verif_L1(a1=r1[0],a2=r1[1]) == sum1
